@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 
@@ -41,30 +42,38 @@ export async function POST(req: Request) {
 
   const org = membership.organization;
 
-  let stripeCustomerId = org.stripeCustomerId;
-  if (!stripeCustomerId) {
-    const customer = await stripe.customers.create({
-      email: user.email,
-      name: org.name,
-      metadata: { organizationId: org.id },
+  try {
+    let stripeCustomerId = org.stripeCustomerId;
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: org.name,
+        metadata: { organizationId: org.id },
+      });
+      stripeCustomerId = customer.id;
+      await db.organization.update({
+        where: { id: org.id },
+        data: { stripeCustomerId },
+      });
+    }
+
+    const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+
+    const session = await stripe.checkout.sessions.create({
+      customer: stripeCustomerId,
+      client_reference_id: org.id,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}/dashboard/${orgSlug}/billing?success=1`,
+      cancel_url: `${origin}/dashboard/${orgSlug}/billing?canceled=1`,
     });
-    stripeCustomerId = customer.id;
-    await db.organization.update({
-      where: { id: org.id },
-      data: { stripeCustomerId },
-    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    const message = err instanceof Stripe.errors.StripeError
+      ? err.message
+      : "Failed to create checkout session.";
+    console.error("[billing/checkout]", err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
-
-  const session = await stripe.checkout.sessions.create({
-    customer: stripeCustomerId,
-    client_reference_id: org.id,
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${origin}/dashboard/${orgSlug}/billing?success=1`,
-    cancel_url: `${origin}/dashboard/${orgSlug}/billing?canceled=1`,
-  });
-
-  return NextResponse.json({ url: session.url });
 }

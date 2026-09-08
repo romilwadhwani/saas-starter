@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 
@@ -44,12 +45,20 @@ export async function POST(req: Request) {
     );
   }
 
-  const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+  try {
+    const origin = req.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: org.stripeCustomerId,
-    return_url: `${origin}/dashboard/${orgSlug}/billing`,
-  });
+    const session = await stripe.billingPortal.sessions.create({
+      customer: org.stripeCustomerId,
+      return_url: `${origin}/dashboard/${orgSlug}/billing`,
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    const message = err instanceof Stripe.errors.StripeError
+      ? err.message
+      : "Failed to open billing portal.";
+    console.error("[billing/portal]", err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

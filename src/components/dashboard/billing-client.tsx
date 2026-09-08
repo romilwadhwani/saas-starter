@@ -34,29 +34,44 @@ export function BillingClient({
   canceledMessage,
 }: BillingClientProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   async function upgrade(priceId: string) {
     setLoading("checkout");
-    const res = await fetch("/api/billing/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgSlug, priceId }),
-    });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else setLoading(null);
+    setApiError(null);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgSlug, priceId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else setApiError(typeof data.error === "string" ? data.error : "Checkout failed.");
+    } catch {
+      setApiError("Network error. Please try again.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   async function openPortal() {
     setLoading("portal");
-    const res = await fetch("/api/billing/portal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgSlug }),
-    });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else setLoading(null);
+    setApiError(null);
+    try {
+      const res = await fetch("/api/billing/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgSlug }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else setApiError(typeof data.error === "string" ? data.error : "Could not open portal.");
+    } catch {
+      setApiError("Network error. Please try again.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   return (
@@ -69,6 +84,11 @@ export function BillingClient({
       {canceledMessage && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
           {canceledMessage}
+        </div>
+      )}
+      {apiError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {apiError}
         </div>
       )}
 
