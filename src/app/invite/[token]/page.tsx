@@ -48,6 +48,12 @@ export default async function InvitePage({ params }: PageProps) {
     redirect(`/sign-in?redirect_url=/invite/${params.token}`);
   }
 
+  if (user.email !== invitation.email) {
+    return (
+      <InvalidInvite message={`This invite was sent to ${invitation.email}. Sign in with that address to accept it.`} />
+    );
+  }
+
   const existingMembership = await db.membership.findFirst({
     where: { userId: user.id, organizationId: invitation.organizationId },
   });
