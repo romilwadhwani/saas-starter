@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
-    }) as ClerkWebhookEvent;
+    }) as unknown as ClerkWebhookEvent;
   } catch {
     return new Response("Invalid signature", { status: 400 });
   }
