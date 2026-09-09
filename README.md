@@ -6,7 +6,7 @@ A production-ready, full-stack SaaS boilerplate built with **Next.js 14**, **Typ
 
 ## Live Demo
 
-> Deploy to Vercel and add your URL here.
+https://saas-starter-six-beta.vercel.app/
 
 ---
 
